@@ -26,6 +26,7 @@ class SyncOrderFromFerroSiteCommand extends Command
     /**
      * Execute the console command.
      * @param BitrixOrderSyncUseCase $bitrixOrderSyncUseCase
+     * @param FerroSiteBackEndHttpService $backEndHttpService
      * @throws RequestException
      */
     public function handle(
