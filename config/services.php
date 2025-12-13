@@ -31,4 +31,19 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'ferro' => [
+        'base_url' => env('FERRO_API_BASE_URL', 'http://server.ferro.uz:8008/api'),
+        'token' => env('FERRO_API_TOKEN'),
+    ],
+
+    'ferro_site_backend' => [
+        'base_url' => env('FERRO_SITE_BACKEND_API_BASE_URL', 'https://ferro.uz/api'),
+        'token' => env('FERRO_SITE_BACKEND_API_TOKEN'),
+    ],
+
+    'bitrix_webhook' => [
+        'domain' => env('BITRIX_WEBHOOK_DOMAIN'),
+        'application_token' => env('BITRIX_WEBHOOK_APPLICATION_TOKEN'),
+    ],
+
 ];

@@ -1,0 +1,86 @@
+openapi: 3.0.3
+info:
+  title: Ferro Backend API
+  version: 1.0.0
+  description: >
+    Внутренние эндпоинты, которые синхронизируют заказы между Bitrix24 и SUP CRM / SAP-бэк-офисом.
+servers:
+  - url: /api
+tags:
+  - name: Bitrix ↔ SUP Sync
+    description: Автоматизации Bitrix запускают эти процессы для зеркалирования контактов и заказов в SUP CRM.
+paths:
+  /contact/history/order/{contactId}:
+    post:
+      tags:
+        - Bitrix ↔ SUP Sync
+      summary: Скопировать историю заказов SUP в таймлайн контакта Bitrix
+      description: >
+        Контроллер находит контакт Bitrix, определяет его SAP/SUP идентификатор, получает свежие заказы
+        через SUP CRM API и добавляет в ленту контакта те заказы, которых там ещё нет, сохраняя каждое
+        событие в таблице `ferro_sup_orders`, чтобы избежать повторов.
+      parameters:
+        - name: contactId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Идентификатор контакта Bitrix, которому необходимо подтянуть историю заказов из SUP.
+      responses:
+        '204':
+          description: Синхронизация завершена, тело ответа не возвращается.
+        '400':
+          description: У контакта отсутствует SUP/SAP идентификатор, поэтому синхронизировать нечего.
+        '404':
+          description: Контакт Bitrix не найден.
+        '502':
+          description: SUP CRM API или Bitrix вернули ошибку при попытке синхронизации истории.
+      x-internal-note: Несмотря на то что маршрут объявлен через `Route::any`, рекомендуется отправлять POST, так как операция изменяет данные.
+  /sup/orders/create/{dealId}:
+    post:
+      tags:
+        - Bitrix ↔ SUP Sync
+      summary: Создать заказ в SUP по сделке Bitrix
+      description: >
+        Получает сделку из Bitrix, загружает исходный заказ из Ferro Site Backend, приводит его к формату SUP
+        и отправляет через SUP CRM API. После успешного создания заказа в SAP, сделка обновляется полем
+        `UF_CRM_1765651317145`, чтобы исключить повторный запуск сценария.
+      parameters:
+        - name: dealId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Идентификатор сделки Bitrix, которую нужно отразить в SUP.
+      responses:
+        '200':
+          description: Заказ в SUP создан и сделка Bitrix обновлена SAP-ID.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  dealId:
+                    type: integer
+                    description: Сделка, инициировавшая синхронизацию.
+                  sapId:
+                    type: string
+                    description: Идентификатор созданного заказа, возвращённый SUP/SAP.
+                  status:
+                    type: string
+                    enum:
+                      - synced
+                    description: Показывает, что данные SUP и Bitrix синхронизированы.
+              example:
+                dealId: 1904
+                sapId: "SAP-001234"
+                status: synced
+        '400':
+          description: В сделке Bitrix отсутствует `ORIGIN_ID`, поэтому нечего синхронизировать.
+        '409':
+          description: Сделка уже содержит SAP-ID и ранее была синхронизирована.
+        '502':
+          description: Ошибка SUP CRM API или Ferro Site Backend при создании заказа.
+      x-internal-note: Маршрут объявлен через `Route::any`, но для создания записи следует использовать POST.
