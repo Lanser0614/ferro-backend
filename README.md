@@ -1,67 +1,85 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Ferro Backend
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Интеграционный сервис, который хранит локальную историю заказов и синхронизирует сделки и контакты Bitrix24 с SUP CRM / SAP.  
+Проект развёрнут на Laravel и предоставляет ограниченный набор внутренних API-эндпоинтов, которые вызываются вебхуками Bitrix.
 
-## About Laravel
+## Быстрый старт
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+```bash
+cp .env.example .env
+composer install
+php artisan key:generate
+php artisan migrate   # если база данных используется локально
+php artisan serve
+```
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Не забудьте заполнить переменные окружения из блока ниже перед запуском обработчиков.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Ключевые переменные `.env`
 
-## Learning Laravel
+| Переменная | Назначение |
+|-----------|------------|
+| `FERRO_API_BASE_URL`, `FERRO_API_TOKEN` | Настройки Ferro API, откуда подтягиваются заказы. |
+| `FERRO_SITE_BACKEND_API_BASE_URL`, `FERRO_SITE_BACKEND_API_TOKEN` | Доступ к Ferro Site Backend для получения и маппинга заказов. |
+| `BITRIX_WEBHOOK_DOMAIN` | Домен Bitrix24, из которого приходят вебхуки (используется как логин Basic Auth и проверка вебхук-пакетов). |
+| `BITRIX_WEBHOOK_APPLICATION_TOKEN` | Токен приложения Bitrix24 (используется как пароль Basic Auth и проверка вебхук-пакетов). |
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+Значения `BITRIX_*` применяются сразу в двух местах:
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+1. **API-мидлвар `bitrix.webhook`** — проверяет, что webhook содержит `auth.domain` и `auth.application_token`, совпадающие с `.env`. При несовпадении возвращается `401`.
+2. **Basic Auth для документации** — страница `/docs/api` и schema `/docs/openapi.yaml` закрыты простейшей авторизацией. Используйте домен как username и токен как password.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## API-эндпоинты
 
-## Laravel Sponsors
+Файл `routes/api.php` содержит два рабочих маршрута внутри middleware `bitrix.webhook`:
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+- `POST /api/contact/history/order/{contactId}` — синхронизирует историю заказов SUP в таймлайн контакта Bitrix и сохраняет ID заказов в таблице `ferro_sup_orders`.
+- `POST /api/sup/orders/create/{dealId}` — создаёт заказ в SUP по сделке Bitrix (использует Ferro Site Backend для маппинга и после успешной синхронизации проставляет `UF_CRM_1765651317145`).
 
-### Premium Partners
+Оба маршрута объявлены как `Route::any`, но в документации рекомендуем использовать POST, так как операции изменяют состояние.
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+### Пример входящего вебхука от Bitrix
 
-## Contributing
+```json
+{
+  "event": "ONCRMDEALUPDATE",
+  "data": { "FIELDS": { "ID": "30" } },
+  "ts": "1765654070",
+  "auth": {
+    "domain": "bitrix24.ferro.uz",
+    "client_endpoint": "https://bitrix24.ferro.uz/rest/",
+    "application_token": "d74dykccgbxzy4kgoaf3ol1dkw4qjz2w"
+  }
+}
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+В обработчике используйте `data.FIELDS.ID` для вызова `/api/sup/orders/create/{dealId}`.
 
-## Code of Conduct
+## Документация (Redoc)
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+- OpenAPI схема: `docs/openapi.yaml` (описана на русском языке).
+- UI: `resources/views/docs/redoc.blade.php`.
 
-## Security Vulnerabilities
+Для просмотра:
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+```bash
+php artisan serve
+# затем в браузере перейти на http://localhost:8000/docs/api
+# появится окно Basic Auth -> username = BITRIX_WEBHOOK_DOMAIN, password = BITRIX_WEBHOOK_APPLICATION_TOKEN
+```
 
-## License
+## Логгирование вебхуков
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
-# ferro-backend
+`Route::any('/api', ...)` в `routes/api.php` логирует каждое входящее сообщение целиком (`Log::info('data', $request->all())`). Используйте это для отладки интеграций.
+
+## Тестирование
+
+```bash
+php artisan test
+```
+
+Перед пушем обязательно прогоните тесты и убедитесь, что критические env переменные заполнены.
+
+## Лицензия
+
+MIT (см. `LICENSE`), как и оригинальный Laravel skeleton.
