@@ -68,6 +68,33 @@ php artisan serve
 # появится окно Basic Auth -> username = BITRIX_WEBHOOK_DOMAIN, password = BITRIX_WEBHOOK_APPLICATION_TOKEN
 ```
 
+## Консольная команда синхронизации
+
+`app:sync-order-from-ferro-site-command` (`app/Console/Commands/SyncOrderFromFerroSiteCommand.php`) поднимает список заказов с сайта ferro.uz за последние 3 дня через `FerroSiteBackEndHttpService`, после чего вызывает `BitrixOrderSyncUseCase` для каждого заказа и прокидывает его в Bitrix24.
+
+Команду стоит запускать каждый час:
+
+```bash
+php artisan app:sync-order-from-ferro-site-command
+```
+
+В production-среде добавьте её в шедулер Laravel:
+
+```php
+// app/Console/Kernel.php
+protected function schedule(Schedule $schedule): void
+{
+    $schedule->command('app:sync-order-from-ferro-site-command')->hourly();
+}
+```
+
+и настройте cron:
+
+```
+* * * * * cd /path/to/project && php artisan schedule:run >> /dev/null 2>&1
+```
+
+
 ## Логгирование вебхуков
 
 `Route::any('/api', ...)` в `routes/api.php` логирует каждое входящее сообщение целиком (`Log::info('data', $request->all())`). Используйте это для отладки интеграций.
