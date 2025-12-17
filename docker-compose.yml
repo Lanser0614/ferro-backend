@@ -1,0 +1,62 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        USER_ID: ${UID:-1000}
+        GROUP_ID: ${GID:-1000}
+    container_name: ferro-backend-app
+    restart: unless-stopped
+    volumes:
+      - ./:/var/www/html
+      - app_vendor:/var/www/html/vendor
+      - app_node_modules:/var/www/html/node_modules
+    expose:
+      - "9000"
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE:-ferro}
+      DB_USERNAME: ${DB_USERNAME:-ferro}
+      DB_PASSWORD: ${DB_PASSWORD:-ferro}
+    depends_on:
+      db:
+        condition: service_healthy
+  db:
+    image: mysql:8.0
+    container_name: ferro-backend-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-ferro}
+      MYSQL_USER: ${MYSQL_USER:-ferro}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-ferro}
+    ports:
+      - "${FORWARD_DB_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: ferro-backend-nginx
+    restart: unless-stopped
+    ports:
+      - "${NGINX_PORT:-8080}:80"
+    volumes:
+      - ./:/var/www/html
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      app:
+        condition: service_started
+
+volumes:
+  app_vendor:
+  app_node_modules:
+  mysql_data:

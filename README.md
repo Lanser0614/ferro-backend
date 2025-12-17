@@ -15,6 +15,49 @@ php artisan serve
 
 Не забудьте заполнить переменные окружения из блока ниже перед запуском обработчиков.
 
+## Локальная разработка в Docker
+
+В репозиторий добавлен `Dockerfile` и `docker-compose.yml`, чтобы можно было поднять окружение одной командой.
+
+1. Скопируйте `.env.example` в `.env` и пропишите доступы к API.
+2. Чтобы Laravel видел контейнер базы данных, задайте настройки:
+
+   ```dotenv
+   DB_HOST=db
+   DB_PORT=3306
+   DB_DATABASE=ferro
+   DB_USERNAME=ferro
+   DB_PASSWORD=ferro
+   ```
+
+   Эти же значения попадут в `MYSQL_DATABASE`, `MYSQL_USER` и `MYSQL_PASSWORD`, которые использует контейнер MySQL для создания прикладного пользователя. Если хотите использовать `root` только внутри Laravel, просто поменяйте `DB_USERNAME`/`DB_PASSWORD` и оставьте `MYSQL_*` по умолчанию.
+
+3. Соберите образы и установите зависимости:
+
+   ```bash
+   docker compose build
+   docker compose run --rm app composer install
+   docker compose run --rm app php artisan key:generate
+   docker compose run --rm app php artisan migrate   # при необходимости
+   ```
+
+4. Запустите сервисы:
+
+   ```bash
+   docker compose up -d
+   ```
+
+   API отдаётся nginx на `http://localhost:8080` (поменяйте порт переменной `NGINX_PORT=8000`, если нужно). База данных проброшена на `localhost:3306`, значение можно переопределить переменной `FORWARD_DB_PORT`.
+
+Полезные команды:
+
+- `docker compose logs -f app` — просмотр логов Laravel.
+- `docker compose exec app php artisan test` — запуск тестов.
+- `docker compose exec app bash -lc "npm install && npm run dev"` — сборка фронтенд-ассетов внутри контейнера.
+- `docker compose down` / `docker compose down -v` — остановка сервисов и, при необходимости, очистка данных MySQL.
+
+Контейнер `app` запускается из-под пользователя с UID/GID `1000`. Если файловая система выдаёт права `root`, перед сборкой можно указать свои значения (`export UID && export GID` в терминале) — Compose подставит их в аргументы сборки `USER_ID` и `GROUP_ID`.
+
 ## Ключевые переменные `.env`
 
 | Переменная | Назначение |

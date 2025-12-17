@@ -2,8 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
+Route::get('/', function (\Doniyor\Bitrix24\Bitrix24Manager $manager) {
+    dd($manager->crm()->deals()->get(30));
 });
 
 Route::middleware('docs.basic')->group(function () {
