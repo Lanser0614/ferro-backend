@@ -6,6 +6,7 @@ use App\Services\Http\FerroSiteBackEndHttpService;
 use App\UseCase\Bitrix\BitrixOrderSyncUseCase;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Support\Facades\Log;
 
 class SyncOrderFromFerroSiteCommand extends Command
 {
@@ -34,6 +35,10 @@ class SyncOrderFromFerroSiteCommand extends Command
         FerroSiteBackEndHttpService $backEndHttpService
     ): void
     {
+
+        Log::debug('artisan', [
+            'app:sync-order-from-ferro-site-command'
+        ]);
         $this->info('Start sync orders from Ferro site');
 
         $orders = $backEndHttpService->listServiceAccountOrdersw();
