@@ -20,7 +20,5 @@ Route::any('/', function (Request $request) {
     Log::info('data', $request->all());
 });
 
-Route::middleware('bitrix.webhook')->group(function () {
-    Route::any('/contact/history/order/{contactId}', [BitrixApiController::class, 'syncContactAndSupOrders']);
-    Route::any('/sup/orders/create/{dealId}', [BitrixApiController::class, 'createOrderToSup']);
-});
+Route::any('/contact/history/order/{contactId}', [BitrixApiController::class, 'syncContactAndSupOrders']);
+Route::any('/sup/orders/create/{dealId}', [BitrixApiController::class, 'createOrderToSup']);
