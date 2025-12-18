@@ -38,9 +38,9 @@ class SyncOrderFromFerroSiteCommand extends Command
 
         $orders = $backEndHttpService->listServiceAccountOrdersw();
 
-        $this->output->progressStart(count($orders));
+        $this->output->progressStart(count($orders['result']));
 
-        foreach ($orders as $order) {
+        foreach ($orders['result'] as $order) {
             $this->output->progressAdvance();
 
             $bitrixOrderSyncUseCase->sync($order);
