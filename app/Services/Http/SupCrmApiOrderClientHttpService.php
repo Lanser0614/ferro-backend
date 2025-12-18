@@ -34,6 +34,18 @@ class SupCrmApiOrderClientHttpService
         return $response->json();
     }
 
+    public function getOrderById(int $supOrderId): mixed
+    {
+        try {
+            $data = $this->baseRequest()->get("/order/$supOrderId")->throw()->json();
+        } catch (RequestException $exception) {
+            Log::error('error_on_send_to_sup' , [
+                'payload' => $supOrderId,
+                'exception' => $exception
+            ]);
+        }
+        return $data;
+    }
 
     /**
      * @param array $payload

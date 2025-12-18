@@ -4,6 +4,7 @@ namespace App\UseCase\Bitrix;
 
 use App\BitrixManager\Bitrix;
 use App\Enum\BitrixDealStageIdEnum;
+use App\Models\SupOrder;
 use App\Services\Http\FerroSiteBackEndHttpService;
 use App\Services\Http\SupCrmApiOrderClientHttpService;
 use Doniyor\Bitrix24\Bitrix24Manager;
@@ -59,6 +60,18 @@ class SupCreateOrderUseCase
             throw new \DomainException('Deal does not contain ORIGIN_ID');
         }
 
+        $supOrder = SupOrder::query()->where('bitrix_deal_id', '=', $dealDto->id)->first();
+
+        if ($supOrder) {
+            Log::debug('create-deal-on-sup', [
+                'dealId' => $dealId,
+                'sapId'  => $dealDto->extra()['UF_CRM_1765651317145'],
+                'status' => 'already-synced',
+            ]);
+
+            return $deal;
+        }
+
         $ferroOrderId = $dealDto->extra()['ORIGIN_ID'];
 
         $ferroOrder = $this->ferroSiteBackEndHttpService
@@ -82,6 +95,11 @@ class SupCreateOrderUseCase
                 ],
             ]
         );
+
+        $newSupOrder = new SupOrder();
+        $newSupOrder->sup_order_id = (int) $sapId;
+        $newSupOrder->bitrix_deal_id = $dealId;
+        $newSupOrder->save();
 
         Log::debug('create-deal-on-sup', [
             'dealId' => $dealId,
