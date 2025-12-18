@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::any('/', function (Request $request) {
+Route::any('/test', function (Request $request) {
     Log::info('data', $request->all());
 });
 
