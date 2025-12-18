@@ -1,12 +1,9 @@
 <?php
 
-use App\BitrixManager\Bitrix;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function (Bitrix $manager) {
-    dd($manager->sendDataToBitrix('crm.deal.get', [
-        'ID' => 30
-    ]));
+Route::get('/', function () {
+    return view('welcome');
 });
 
 Route::view('/docs/api', 'docs.redoc')->name('docs.redoc');
