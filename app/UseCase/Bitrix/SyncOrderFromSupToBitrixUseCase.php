@@ -2,6 +2,7 @@
 
 namespace App\UseCase\Bitrix;
 
+use App\BitrixManager\Bitrix;
 use App\Models\FerroSupOrder;
 use App\Services\Http\SupCrmApiOrderClientHttpService;
 use Doniyor\Bitrix24\Bitrix24Manager;
@@ -12,7 +13,7 @@ use Illuminate\Http\Client\RequestException;
 class SyncOrderFromSupToBitrixUseCase
 {
     public function __construct(
-        private readonly Bitrix24Manager                      $bitrixManager,
+        private readonly Bitrix                      $bitrixManager,
         private readonly ContactResponseMapper                $contactResponseMapper,
         private readonly SupCrmApiOrderClientHttpService $ferroOrderClientHttpService
     )
@@ -25,8 +26,12 @@ class SyncOrderFromSupToBitrixUseCase
     public function execute(int $contactId): void
     {
 
+        $contact = $this->bitrixManager->sendDataToBitrix('crm.contact.get', [
+            'id' => $contactId,
+        ]);
+
         try {
-            $contact = $this->contactResponseMapper->map($this->bitrixManager->crm()->contacts()->get($contactId));
+            $contact = $this->contactResponseMapper->map($contact);
         } catch (Bitrix24RequestException $th) {
             return;
         }
@@ -52,7 +57,7 @@ class SyncOrderFromSupToBitrixUseCase
 
             $orderInfo = $this->mapSapToBitrix($order);
 
-            $this->bitrixManager->call('crm.timeline.comment.add', [
+            $this->bitrixManager->sendDataToBitrix('crm.timeline.comment.add', [
                 'fields' => [
                     'ENTITY_TYPE' => 'contact',
                     'ENTITY_ID' => $contact->id,

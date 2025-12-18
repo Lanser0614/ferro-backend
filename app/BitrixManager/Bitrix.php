@@ -12,8 +12,5 @@ class Bitrix
             ->baseUrl(config('bitrix24.base_uri'))
             ->post($method, $data)
             ->json();
-
-
-
     }
 }
