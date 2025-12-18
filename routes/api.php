@@ -21,4 +21,4 @@ Route::any('/test', function (Request $request) {
 });
 
 Route::any('/contact/history/order/{contactId}', [BitrixApiController::class, 'syncContactAndSupOrders']);
-Route::any('/sup/orders/create/{dealId}', [BitrixApiController::class, 'createOrderToSup']);
+Route::any('/sup/orders/create', [BitrixApiController::class, 'createOrderToSup']);
