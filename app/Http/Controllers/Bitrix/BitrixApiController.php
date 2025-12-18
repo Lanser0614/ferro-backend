@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\UseCase\Bitrix\SupCreateOrderUseCase;
 use App\UseCase\Bitrix\SyncOrderFromSupToBitrixUseCase;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class BitrixApiController extends Controller
 {
@@ -29,8 +31,9 @@ class BitrixApiController extends Controller
      * @param SupCreateOrderUseCase $createOrderUseCase
      * @return void
      */
-    public function createOrderToSup(int $dealId, SupCreateOrderUseCase $createOrderUseCase): void
+    public function createOrderToSup(Request $request, SupCreateOrderUseCase $createOrderUseCase): void
     {
-        $createOrderUseCase->execute($dealId);
+        Log::info('bitrix-webhook', $request->all());
+//        $createOrderUseCase->execute($dealId);
     }
 }
