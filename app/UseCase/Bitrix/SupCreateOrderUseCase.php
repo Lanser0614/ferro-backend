@@ -8,6 +8,7 @@ use App\Services\Http\FerroSiteBackEndHttpService;
 use App\Services\Http\SupCrmApiOrderClientHttpService;
 use Doniyor\Bitrix24\Bitrix24Manager;
 use Doniyor\Bitrix24\CRM\Mappers\DealResponseMapper;
+use Illuminate\Support\Facades\Log;
 
 class SupCreateOrderUseCase
 {
@@ -27,6 +28,12 @@ class SupCreateOrderUseCase
         $dealDto = $this->dealResponseMapper->map($deal);
 
         if ($dealDto->stageId != BitrixDealStageIdEnum::EXECUTING->value) {
+            Log::debug('create-deal-on-sup', [
+                'dealId' => $dealId,
+                'sapId'  => '',
+                'status' => 'skipped',
+            ]);
+
             return [
                 'dealId' => $dealId,
                 'sapId'  => '',
@@ -67,6 +74,12 @@ class SupCreateOrderUseCase
                 ],
             ]
         );
+
+        Log::debug('create-deal-on-sup', [
+            'dealId' => $dealId,
+            'sapId'  => $sapId,
+            'status' => 'synced',
+        ]);
 
         return [
             'dealId' => $dealId,
