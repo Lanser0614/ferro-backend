@@ -42,16 +42,18 @@ class SupCreateOrderUseCase
         }
 
         // SAP ID уже есть → просто возвращаем сделку
-        if (!empty($deal['UF_CRM_1765651317145'])) {
+        if (!empty($dealDto->extra()['UF_CRM_1765651317145'])) {
             return $deal;
         }
 
+
+
         // Нет origin_id → нечего синкать
-        if (empty($deal['ORIGIN_ID'])) {
+        if (empty($dealDto->extra()['ORIGIN_ID'])) {
             throw new \DomainException('Deal does not contain ORIGIN_ID');
         }
 
-        $ferroOrderId = $deal['ORIGIN_ID'];
+        $ferroOrderId = $dealDto->extra()['ORIGIN_ID'];
 
         $ferroOrder = $this->ferroSiteBackEndHttpService
             ->serviceAccountOrderById($ferroOrderId);
