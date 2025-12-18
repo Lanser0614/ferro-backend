@@ -65,9 +65,21 @@ class SupCreateOrderUseCase
         if ($supOrder) {
             Log::debug('create-deal-on-sup', [
                 'dealId' => $dealId,
-                'sapId'  => $dealDto->extra()['UF_CRM_1765651317145'],
+                'sapId'  => $supOrder->sup_order_id,
                 'status' => 'already-synced',
             ]);
+
+            if ($supOrder->sup_order_id != $dealDto->extra()['UF_CRM_1765651317145']) {
+                $this->bitrix24Manager->sendDataToBitrix(
+                    'crm.deal.update',
+                    [
+                        'id' => $dealId,
+                        'fields' => [
+                            'UF_CRM_1765651317145' => $supOrder->sup_order_id,
+                        ],
+                    ]
+                );
+            }
 
             return $deal;
         }
