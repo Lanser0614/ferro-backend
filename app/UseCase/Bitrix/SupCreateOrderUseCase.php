@@ -43,6 +43,12 @@ class SupCreateOrderUseCase
 
         // SAP ID уже есть → просто возвращаем сделку
         if (!empty($dealDto->extra()['UF_CRM_1765651317145'])) {
+            Log::debug('create-deal-on-sup', [
+                'dealId' => $dealId,
+                'sapId'  => $dealDto->extra()['UF_CRM_1765651317145'],
+                'status' => 'already-synced',
+            ]);
+
             return $deal;
         }
 
