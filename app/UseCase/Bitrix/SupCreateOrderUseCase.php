@@ -2,6 +2,7 @@
 
 namespace App\UseCase\Bitrix;
 
+use App\BitrixManager\Bitrix;
 use App\Enum\BitrixDealStageIdEnum;
 use App\Services\Http\FerroSiteBackEndHttpService;
 use App\Services\Http\SupCrmApiOrderClientHttpService;
@@ -11,7 +12,7 @@ use Doniyor\Bitrix24\CRM\Mappers\DealResponseMapper;
 class SupCreateOrderUseCase
 {
     public function __construct(
-        private readonly Bitrix24Manager                 $bitrix24Manager,
+        private readonly Bitrix                 $bitrix24Manager,
         private readonly FerroSiteBackEndHttpService     $ferroSiteBackEndHttpService,
         private readonly SupCrmApiOrderClientHttpService $supHttpClientService,
         private readonly DealResponseMapper $dealResponseMapper
@@ -19,10 +20,9 @@ class SupCreateOrderUseCase
 
     public function execute(int $dealId): array
     {
-        $deal = $this->bitrix24Manager
-            ->crm()
-            ->deals()
-            ->get($dealId);
+        $deal = $this->bitrix24Manager->sendDataToBitrix('crm.deal.get', [
+            'id' => $dealId,
+        ]);
 
         $dealDto = $this->dealResponseMapper->map($deal);
 
@@ -58,7 +58,7 @@ class SupCreateOrderUseCase
         $sapId = (string) $sapResponse['id'];
 
         // Обновляем сделку в Bitrix
-        $this->bitrix24Manager->call(
+        $this->bitrix24Manager->sendDataToBitrix(
             'crm.deal.update',
             [
                 'id' => $dealId,
