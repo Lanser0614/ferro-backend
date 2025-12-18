@@ -28,7 +28,6 @@ class SyncOrderFromSupToBitrixUseCase
         try {
             $contact = $this->contactResponseMapper->map($this->bitrixManager->crm()->contacts()->get($contactId));
         } catch (Bitrix24RequestException $th) {
-            dd($th);
             return;
         }
 
