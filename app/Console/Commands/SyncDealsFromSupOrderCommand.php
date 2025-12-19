@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\BitrixManager\Bitrix;
 use App\Models\SupOrder;
 use App\Services\Http\SupCrmApiOrderClientHttpService;
 use Illuminate\Console\Command;
@@ -26,12 +27,24 @@ class SyncDealsFromSupOrderCommand extends Command
      * Execute the console command.
      */
     public function handle(
-        SupCrmApiOrderClientHttpService $apiOrderClientHttpService
+        SupCrmApiOrderClientHttpService $apiOrderClientHttpService,
+        Bitrix $bitrix
     )
     {
-        SupOrder::query()->where('status', '=', 'new')->chunkById(100, function ($supOrders) use ($apiOrderClientHttpService) {
+        SupOrder::query()->where('status', '=', 'new')->chunkById(100, function ($supOrders) use ($apiOrderClientHttpService, $bitrix) {
             foreach ($supOrders as $supOrder) {
                 $order = $apiOrderClientHttpService->getOrderById($supOrder->sup_order_id);
+                if ($order['status'] != 'Closed') {
+                    $bitrix->sendDataToBitrix(
+                        'crm.deal.update',
+                        [
+                            'id' => $supOrder->bitrix_deal_id,
+                            'fields' => [
+                                'UF_CRM_1766123056' => $order['status'],
+                            ],
+                        ]
+                    );
+                }
             }
         });
     }
