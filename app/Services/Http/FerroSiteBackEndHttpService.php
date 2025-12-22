@@ -19,7 +19,7 @@ class FerroSiteBackEndHttpService
     {
         $query = array_merge([
             'sortOrder' => 'DESCENDING',
-            'minCreatedDate' => now()->subDays(3)->format('Y-m-d'),
+            'minCreatedDate' => now()->subDays(10)->format('Y-m-d'),
             'maxCreatedDate' => now()->format('Y-m-d'),
         ]);
 

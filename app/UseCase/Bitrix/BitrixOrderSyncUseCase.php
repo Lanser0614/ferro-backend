@@ -2,6 +2,7 @@
 
 namespace App\UseCase\Bitrix;
 
+use App\BitrixManager\Bitrix;
 use App\Models\FerroProducts;
 use App\Services\Http\FerroSiteBackEndHttpService;
 use Doniyor\Bitrix24\Bitrix24Manager;
@@ -13,7 +14,8 @@ class BitrixOrderSyncUseCase
 {
     public function __construct(
         private readonly FerroSiteBackEndHttpService $backendService,
-        private readonly Bitrix24Manager             $bitrix,
+        private readonly Bitrix24Manager             $bitrix24Manager,
+        private readonly Bitrix                      $bitrix,
         private readonly ContactResponseMapper       $contactMapper
     )
     {
@@ -32,10 +34,10 @@ class BitrixOrderSyncUseCase
 
         // 2) Если сделка есть → пропускаем
         if ($this->dealExists($order['id'])) {
-            $dealId = $this->bitrix->crm()->deals()->list(
-                filter: ['ORIGIN_ID' => $order['id']],
-                select: ['ID']
-            )['result'][0]['ID'];
+            $dealId = $this->bitrix->sendDataToBitrix('crm.deal.list', [
+                "filter" => ['ORIGIN_ID' => $order['id']],
+                "select" => ['ID']
+            ])['result'][0]['ID'];
         } else {
             // 3) Создаём сделку
             $dealId = $this->createDeal($contactDto, $order);
@@ -43,6 +45,12 @@ class BitrixOrderSyncUseCase
 
         $this->insertProducts($order, $dealId);
 
+        $this->bitrix->sendDataToBitrix('crm.deal.update', [
+            'id' => $dealId,
+            'fields' => [
+                'OPPORTUNITY' => $order['total']
+            ]
+        ]);
 
         return ['status' => 'OK'];
     }
@@ -58,7 +66,9 @@ class BitrixOrderSyncUseCase
 
         if ($contacts['total'] == 0) {
             $contactId = $this->createContact($order);
-            return $this->bitrix->crm()->contacts()->get($contactId);
+            return $this->bitrix->sendDataToBitrix('crm.contact.get', [
+                'ID' => $contactId
+            ]);
         }
 
         if ($contacts['total'] > 1) {
@@ -71,7 +81,9 @@ class BitrixOrderSyncUseCase
             }
 
             $contactId = $this->createContact($order);
-            return $this->bitrix->crm()->contacts()->get($contactId);
+            return $this->bitrix->sendDataToBitrix('crm.contact.get', [
+                'ID' => $contactId
+            ]);
         }
 
         return $contacts['result'][0];
@@ -82,10 +94,10 @@ class BitrixOrderSyncUseCase
      */
     private function findContactsByCustomerId(string $customerId): array
     {
-        return $this->bitrix->crm()->contacts()->list(
-            filter: ['UF_CRM_1763806272' => $customerId],
-            select: ['ID', 'NAME', 'UF_CRM_1763806272']
-        );
+        return $this->bitrix->sendDataToBitrix('crm.contact.list', [
+            "filter" => ['UF_CRM_1763806272' => $customerId],
+            "select" => ['ID', 'NAME', 'UF_CRM_1763806272']
+        ]);
     }
 
     /**
@@ -93,20 +105,22 @@ class BitrixOrderSyncUseCase
      */
     private function createContact(array $order): int
     {
-        return $this->bitrix->crm()->contacts()->add(
-            new ContactFieldsDto(
-                name: $order['customerName'],
-                phones: [
-                    [
-                        'VALUE' => $order['customerPhone'],
-                        'VALUE_TYPE' => 'MOBILE'
-                    ],
+        $data =  new ContactFieldsDto(
+            name: $order['customerName'],
+            phones: [
+                [
+                    'VALUE' => $order['customerPhone'],
+                    'VALUE_TYPE' => 'MOBILE'
                 ],
-                extra: [
-                    'UF_CRM_1763806272' => $order['customerExternalId']
-                ]
-            )
+            ],
+            extra: [
+                'UF_CRM_1763806272' => $order['customerExternalId']
+            ]
         );
+
+        return $this->bitrix->sendDataToBitrix('crm.contact.add', [
+            'fields' => $data->toArray()
+        ]);
     }
 
     /**
@@ -114,7 +128,7 @@ class BitrixOrderSyncUseCase
      */
     private function dealExists(string $originId): bool
     {
-        $deal = $this->bitrix->crm()->deals()->list(
+        $deal = $this->bitrix24Manager->crm()->deals()->list(
             filter: ['ORIGIN_ID' => $originId],
             select: ['ID']
         );
@@ -127,23 +141,25 @@ class BitrixOrderSyncUseCase
      */
     private function createDeal(object $contactDto, array $order): int
     {
-        return $this->bitrix->crm()->deals()->add(
-            new DealFieldsDto(
-                title: 'Заказ: ' . $contactDto->name,
-                categoryId: '0',
-                stageId: '52',
-                contactId: $contactDto->id,
-                extra: [
-                    'OPPORTUNITY' => $order['total'],
-                    'CURRENCY_ID' => 'USD',
-                    'UF_CRM_1763822803420' => $order['sourceType'],
-                    'UF_CRM_1763823006332' => $order['status'],
-                    'UF_CRM_1763823082918' => $order['currencyRate'],
-                    'DATE_CREATE' => $order['createdDate'],
-                    'ORIGIN_ID' => $order['id']
-                ]
-            )
-        );
+        $data = (new DealFieldsDto(
+            title: 'Заказ: ' . $contactDto->name,
+            categoryId: '0',
+            stageId: '52',
+            contactId: $contactDto->id,
+            extra: [
+                'OPPORTUNITY' => $order['total'],
+                'CURRENCY_ID' => 'USD',
+                'UF_CRM_1763822803420' => $order['sourceType'],
+                'UF_CRM_1763823006332' => $order['status'],
+                'UF_CRM_1763823082918' => $order['currencyRate'],
+                'DATE_CREATE' => $order['createdDate'],
+                'ORIGIN_ID' => $order['id']
+            ]
+        ))->toArray();
+
+        return $this->bitrix->sendDataToBitrix('crm.deal.add', [
+            'fields' => $data
+        ]);
     }
 
 
@@ -152,7 +168,7 @@ class BitrixOrderSyncUseCase
         $orderData = $this->backendService->serviceAccountOrderById($order['id']);
         $orderProducts = $orderData['products'];
 
-        $existDealProducts = $this->bitrix->call('crm.item.productrow.list', [
+        $existDealProducts = $this->bitrix24Manager->call('crm.item.productrow.list', [
             'filter' => [
                 "=ownerType" => 'D',
                 "=ownerId" => $dealId,
@@ -163,7 +179,7 @@ class BitrixOrderSyncUseCase
             $dealProductIds = collect($existDealProducts['result']['productRows'])->pluck('id')->toArray();
 
             foreach ($dealProductIds as $id) {
-                $this->bitrix->call('crm.item.productrow.delete', [
+                $this->bitrix24Manager->call('crm.item.productrow.delete', [
                     'id' => $id,
                 ]);
             }
@@ -177,7 +193,7 @@ class BitrixOrderSyncUseCase
             $productSupId = $orderProduct['product']['externalId'];
             $productName = $orderProduct['product']['searchableName'];
 
-            $bitrixProduct = $this->bitrix->call('catalog.product.list', [
+            $bitrixProduct = $this->bitrix24Manager->call('catalog.product.list', [
                 "select" => ["id", 'iblockId', 'name', 'xmlId'],
                 "filter" => [
                     "xmlId" => $productSupId,
@@ -193,7 +209,7 @@ class BitrixOrderSyncUseCase
                 $bitrixProductId = $product['id'];
             } else {
                 try {
-                    $productData = $this->bitrix->call('catalog.product.add', [
+                    $productData = $this->bitrix24Manager->call('catalog.product.add', [
                         "fields" => [
                             'iblockId' => FerroProducts::CATALOG_ID,
                             "name" => $productName,
@@ -207,7 +223,7 @@ class BitrixOrderSyncUseCase
                 $bitrixProductId = $productData['result']['element']['id'];
             }
 
-            $this->bitrix->call('crm.item.productrow.add', [
+            $this->bitrix24Manager->call('crm.item.productrow.add', [
                 "fields" => [
                     'ownerId' => $dealId,
                     'ownerType' => 'D',
