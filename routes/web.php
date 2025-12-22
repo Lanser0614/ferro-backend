@@ -1,14 +1,9 @@
 <?php
 
-use App\Services\Http\FerroSiteBackEndHttpService;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function (
-    FerroSiteBackEndHttpService $backEndHttpService,
-    \App\UseCase\Bitrix\BitrixOrderSyncUseCase $useCase
-) {
-    $order = $backEndHttpService->serviceAccountOrderById(1080079);
-    $useCase->sync($order);
+Route::get('/', function () {
+return view('welcome');
 });
 
 Route::view('/docs/api', 'docs.redoc')->name('docs.redoc');
