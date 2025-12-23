@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function (\App\Services\Http\FerroSiteBackEndHttpService $backEndHttpService) {
-    dd($backEndHttpService->listServiceAccountOrdersw());
+//    dd($backEndHttpService->listServiceAccountOrdersw());
     return view('welcome');
 });
 
