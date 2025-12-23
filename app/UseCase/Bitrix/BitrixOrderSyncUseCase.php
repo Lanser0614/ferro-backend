@@ -105,7 +105,7 @@ class BitrixOrderSyncUseCase
      */
     private function createContact(array $order): int
     {
-        $data =  new ContactFieldsDto(
+        $data = new ContactFieldsDto(
             name: $order['customerName'],
             phones: [
                 [
@@ -128,9 +128,11 @@ class BitrixOrderSyncUseCase
      */
     private function dealExists(string $originId): bool
     {
-        $deal = $this->bitrix24Manager->crm()->deals()->list(
-            filter: ['ORIGIN_ID' => $originId],
-            select: ['ID']
+        $deal = $this->bitrix->sendDataToBitrix('crm.deal.list',
+            [
+                "filter" => ['ORIGIN_ID' => $originId],
+                "select" => ['ID']
+            ]
         );
 
         return $deal['total'] > 0;
@@ -168,7 +170,7 @@ class BitrixOrderSyncUseCase
         $orderData = $this->backendService->serviceAccountOrderById($order['id']);
         $orderProducts = $orderData['products'];
 
-        $existDealProducts = $this->bitrix24Manager->call('crm.item.productrow.list', [
+        $existDealProducts = $this->bitrix->sendDataToBitrix('crm.item.productrow.list', [
             'filter' => [
                 "=ownerType" => 'D',
                 "=ownerId" => $dealId,
@@ -179,7 +181,7 @@ class BitrixOrderSyncUseCase
             $dealProductIds = collect($existDealProducts['result']['productRows'])->pluck('id')->toArray();
 
             foreach ($dealProductIds as $id) {
-                $this->bitrix24Manager->call('crm.item.productrow.delete', [
+                $this->bitrix->sendDataToBitrix('crm.item.productrow.delete', [
                     'id' => $id,
                 ]);
             }
@@ -193,7 +195,7 @@ class BitrixOrderSyncUseCase
             $productSupId = $orderProduct['product']['externalId'];
             $productName = $orderProduct['product']['searchableName'];
 
-            $bitrixProduct = $this->bitrix24Manager->call('catalog.product.list', [
+            $bitrixProduct = $this->bitrix->sendDataToBitrix('catalog.product.list', [
                 "select" => ["id", 'iblockId', 'name', 'xmlId'],
                 "filter" => [
                     "xmlId" => $productSupId,
@@ -209,7 +211,7 @@ class BitrixOrderSyncUseCase
                 $bitrixProductId = $product['id'];
             } else {
                 try {
-                    $productData = $this->bitrix24Manager->call('catalog.product.add', [
+                    $productData = $this->bitrix->sendDataToBitrix('catalog.product.add', [
                         "fields" => [
                             'iblockId' => FerroProducts::CATALOG_ID,
                             "name" => $productName,
@@ -223,7 +225,7 @@ class BitrixOrderSyncUseCase
                 $bitrixProductId = $productData['result']['element']['id'];
             }
 
-            $this->bitrix24Manager->call('crm.item.productrow.add', [
+            $this->bitrix->sendDataToBitrix('crm.item.productrow.add', [
                 "fields" => [
                     'ownerId' => $dealId,
                     'ownerType' => 'D',
