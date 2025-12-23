@@ -12,6 +12,15 @@ use JsonException;
 
 class SupCrmApiOrderClientHttpService
 {
+
+    public function getClientDebtByBusinessPartnerId(?string $businessPartnerId = null)
+    {
+        return $this->baseRequest()
+            ->get('/debt/list',[
+                'businessPartnerId' => $businessPartnerId
+            ])->json();
+    }
+
     /**
      * @throws RequestException
      */

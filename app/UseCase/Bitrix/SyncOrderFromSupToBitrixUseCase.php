@@ -36,16 +36,42 @@ class SyncOrderFromSupToBitrixUseCase
             return;
         }
 
+
+
         $sapContactId = $contact->extra()['UF_CRM_1763806272'];
 
         if (!$sapContactId) {
             return;
         }
 
+        $debts = $this->ferroOrderClientHttpService->getClientDebtByBusinessPartnerId('12-ABDULLOH29');
+        $debtCollection = collect($debts)->map(function ($debt) {
+            return [
+                'balance' => $debt['balance'],
+                'debtBalance' => $debt['debit'] - $debt['credit'],
+                'overdueInDays' => $debt['overdueInDays'],
+                'dueDate' => $debt['dueDate'],
+                'documentId' => $debt['documentId'],
+                'documentTypeCode' => $debt['documentTypeCode'],
+            ];
+        });
+
+
         $supOrders = FerroSupOrder::whereBitrixContactId($contact->id)
             ->pluck('sup_order_id')->toArray();;
 
         $orders = $this->ferroOrderClientHttpService->listOrders($sapContactId);
+
+        $debts = $this->ferroOrderClientHttpService->getClientDebtByBusinessPartnerId($sapContactId);
+
+        if (count($debts) > 0) {
+            $this->bitrixManager->sendDataToBitrix('crm.contact.update', [
+                'ID' => $contact->id,
+                'fields' => [
+
+                ]
+            ]);
+        }
 
         if ($orders['totalCount'] == 0) {
             return;
@@ -70,6 +96,7 @@ class SyncOrderFromSupToBitrixUseCase
             $model->contact_sup_id = $sapContactId;
             $model->save();
         }
+
 
     }
 
