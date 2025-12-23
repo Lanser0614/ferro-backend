@@ -14,7 +14,6 @@ class BitrixOrderSyncUseCase
 {
     public function __construct(
         private readonly FerroSiteBackEndHttpService $backendService,
-        private readonly Bitrix24Manager             $bitrix24Manager,
         private readonly Bitrix                      $bitrix,
         private readonly ContactResponseMapper       $contactMapper
     )
