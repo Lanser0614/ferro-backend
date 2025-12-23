@@ -13,8 +13,8 @@ use Illuminate\Http\Client\RequestException;
 class SyncOrderFromSupToBitrixUseCase
 {
     public function __construct(
-        private readonly Bitrix                      $bitrixManager,
-        private readonly ContactResponseMapper                $contactResponseMapper,
+        private readonly Bitrix                          $bitrixManager,
+        private readonly ContactResponseMapper           $contactResponseMapper,
         private readonly SupCrmApiOrderClientHttpService $ferroOrderClientHttpService
     )
     {
@@ -37,14 +37,13 @@ class SyncOrderFromSupToBitrixUseCase
         }
 
 
-
         $sapContactId = $contact->extra()['UF_CRM_1763806272'];
 
         if (!$sapContactId) {
             return;
         }
 
-        $debts = $this->ferroOrderClientHttpService->getClientDebtByBusinessPartnerId('12-ABDULLOH29');
+        $debts = $this->ferroOrderClientHttpService->getClientDebtByBusinessPartnerId($sapContactId);
         $debtCollection = collect($debts)->map(function ($debt) {
             return [
                 'balance' => $debt['balance'],
@@ -55,6 +54,29 @@ class SyncOrderFromSupToBitrixUseCase
                 'documentTypeCode' => $debt['documentTypeCode'],
             ];
         });
+
+
+
+
+        //        balance - UF_CRM_1761816955
+        //        (debit - credit) - UF_CRM_1766517351
+        //        overdueInDays - UF_CRM_1766517429
+        //        dueDate - UF_CRM_1766517483
+        //        documentId - UF_CRM_1766517544
+        //        documentTypeCode - UF_CRM_1766517575
+        if ($debtCollection->isNotEmpty()) {
+            $this->bitrixManager->sendDataToBitrix('crm.contact.update', [
+                'ID' => $contact->id,
+                'fields' => [
+                    'UF_CRM_1766517091' => $debtCollection->pluck('balance')->toArray(),
+                    'UF_CRM_1766517351' => $debtCollection->pluck('debtBalance')->toArray(),
+                    'UF_CRM_1766517429' => $debtCollection->pluck('overdueInDays')->toArray(),
+                    'UF_CRM_1766517483' => $debtCollection->pluck('dueDate')->toArray(),
+                    'UF_CRM_1766517544' => $debtCollection->pluck('documentId')->toArray(),
+                    'UF_CRM_1766517575' => $debtCollection->pluck('documentTypeCode')->toArray(),
+                ]
+            ]);
+        }
 
 
         $supOrders = FerroSupOrder::whereBitrixContactId($contact->id)

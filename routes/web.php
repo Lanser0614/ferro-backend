@@ -2,8 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function (\App\UseCase\Bitrix\SyncOrderFromSupToBitrixUseCase $syncOrderFromSupToBitrixUseCase) {
-    $syncOrderFromSupToBitrixUseCase->execute(17827);
+Route::get('/', function () {
+    return view('welcome');
 });
 
 Route::view('/docs/api', 'docs.redoc')->name('docs.redoc');
