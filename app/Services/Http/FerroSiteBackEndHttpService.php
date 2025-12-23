@@ -18,7 +18,7 @@ class FerroSiteBackEndHttpService
     public function listServiceAccountOrdersw(array $query = []): array
     {
         $query = array_merge([
-            'minCreatedDate' => now()->subDays()->startOfDay()->format('Y-m-d\TH:i:s.v'),
+            'minCreatedDate' => now()->subWeek()->startOfDay()->format('Y-m-d\TH:i:s.v'),
             'maxCreatedDate' => now()->endOfDay()->format('Y-m-d\TH:i:s.v'),
         ]);
 
