@@ -2,8 +2,9 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-return view('welcome');
+Route::get('/', function (\App\Services\Http\FerroSiteBackEndHttpService $backEndHttpService) {
+    dd($backEndHttpService->listServiceAccountOrdersw());
+    return view('welcome');
 });
 
 Route::view('/docs/api', 'docs.redoc')->name('docs.redoc');
