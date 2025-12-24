@@ -44,10 +44,12 @@ class BitrixOrderSyncUseCase
 
         $this->insertProducts($order, $dealId);
 
-        $this->bitrix->sendDataToBitrix('crm.deal.update', [
-            'id' => $dealId,
+
+
+       $resTwo = $this->bitrix->sendDataToBitrix('crm.deal.update', [
+            'id' => (int) $dealId,
             'fields' => [
-                'OPPORTUNITY' => $order['total']
+                'UF_CRM_1766576508913' => (float) $order['total']
             ]
         ]);
 
@@ -150,7 +152,8 @@ class BitrixOrderSyncUseCase
             stageId: '52',
             contactId: $contactDto->id,
             extra: [
-                'OPPORTUNITY' => $order['total'],
+                'IS_MANUAL_OPPORTUNITY' => 'N',
+                'UF_CRM_1766576508913' => $order['total'],
                 'CURRENCY_ID' => 'USD',
                 'UF_CRM_1763822803420' => $order['sourceType'],
                 'UF_CRM_1763823006332' => $order['status'],
