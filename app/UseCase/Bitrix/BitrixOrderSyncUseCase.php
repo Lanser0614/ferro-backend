@@ -117,9 +117,11 @@ class BitrixOrderSyncUseCase
             ]
         );
 
-        return $this->bitrix->sendDataToBitrix('crm.contact.add', [
+        $response = $this->bitrix->sendDataToBitrix('crm.contact.add', [
             'fields' => $data->toArray()
         ]);
+
+        return (int) $response['result'];
     }
 
     /**
@@ -158,9 +160,11 @@ class BitrixOrderSyncUseCase
             ]
         ))->toArray();
 
-        return $this->bitrix->sendDataToBitrix('crm.deal.add', [
+        $response = $this->bitrix->sendDataToBitrix('crm.deal.add', [
             'fields' => $data
         ]);
+
+        return (int) $response['result'];
     }
 
 
