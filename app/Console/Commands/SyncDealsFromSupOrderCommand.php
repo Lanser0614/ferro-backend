@@ -31,7 +31,10 @@ class SyncDealsFromSupOrderCommand extends Command
         Bitrix $bitrix
     )
     {
-        SupOrder::query()->where('status', '=', 'new')->chunkById(100, function ($supOrders) use ($apiOrderClientHttpService, $bitrix) {
+        SupOrder::query()
+            ->where('status', '=', 'new')
+            ->whereDate('created_at', '>=', now()->subDays(10))
+            ->chunkById(100, function ($supOrders) use ($apiOrderClientHttpService, $bitrix) {
             foreach ($supOrders as $supOrder) {
                 $order = $apiOrderClientHttpService->getOrderById($supOrder->sup_order_id);
                 if ($order['status'] != 'Closed') {
