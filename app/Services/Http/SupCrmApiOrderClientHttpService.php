@@ -127,10 +127,14 @@ class SupCrmApiOrderClientHttpService
      * @param string $phone
      * @throws RequestException
      */
-    public function getCustomerByPhone(string $phone)
+    public function getCustomerByPhone(string $phone): array
     {
         $response = $this->baseRequest()
-            ->post('/customer/list/by-phone?phone=' . $phone)->throw()->json();
+            ->get('/customer/list/by-phone', ['phone' => $phone]);
+
+        $response->throw();
+
+        return $response->json();
     }
 
     private function baseRequest(): PendingRequest
