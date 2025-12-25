@@ -45,11 +45,10 @@ class BitrixOrderSyncUseCase
         $this->insertProducts($order, $dealId);
 
 
-
-       $resTwo = $this->bitrix->sendDataToBitrix('crm.deal.update', [
-            'id' => (int) $dealId,
+        $this->bitrix->sendDataToBitrix('crm.deal.update', [
+            'id' => (int)$dealId,
             'fields' => [
-                'UF_CRM_1766576508913' => (float) $order['total']
+                'UF_CRM_1766576508913' => (float)$order['total']
             ]
         ]);
 
@@ -123,7 +122,7 @@ class BitrixOrderSyncUseCase
             'fields' => $data->toArray()
         ]);
 
-        return (int) $response['result'];
+        return (int)$response['result'];
     }
 
     /**
@@ -167,7 +166,7 @@ class BitrixOrderSyncUseCase
             'fields' => $data
         ]);
 
-        return (int) $response['result'];
+        return (int)$response['result'];
     }
 
 
@@ -176,22 +175,12 @@ class BitrixOrderSyncUseCase
         $orderData = $this->backendService->serviceAccountOrderById($order['id']);
         $orderProducts = $orderData['products'];
 
-        $existDealProducts = $this->bitrix->sendDataToBitrix('crm.item.productrow.list', [
-            'filter' => [
-                "=ownerType" => 'D',
-                "=ownerId" => $dealId,
-            ],
-        ]);
 
-        if (isset($existDealProducts['result']['productRows'])) {
-            $dealProductIds = collect($existDealProducts['result']['productRows'])->pluck('id')->toArray();
+        do {
+            $count = $this->deleteProducts($dealId);
+        } while ($count > 0);
 
-            foreach ($dealProductIds as $id) {
-                $this->bitrix->sendDataToBitrix('crm.item.productrow.delete', [
-                    'id' => $id,
-                ]);
-            }
-        }
+
 
         foreach ($orderProducts as $orderProduct) {
             $orderId = $order['id'];
@@ -241,7 +230,36 @@ class BitrixOrderSyncUseCase
                 ]
             ]);
 
-
         }
+    }
+
+
+    public function deleteProducts(int $dealId): int
+    {
+        $existDealProducts = $this->bitrix->sendDataToBitrix('crm.item.productrow.list', [
+            'filter' => [
+                "=ownerType" => 'D',
+                "=ownerId" => $dealId,
+            ],
+        ]);
+
+
+        if (isset($existDealProducts['result']['productRows'])) {
+            collect($existDealProducts['result']['productRows'])->map(function ($item) {
+                $this->bitrix->sendDataToBitrix('crm.item.productrow.delete', [
+                    'id' => $item['id'],
+                ]);
+            });
+        }
+
+        $existDealProducts = $this->bitrix->sendDataToBitrix('crm.item.productrow.list', [
+            'filter' => [
+                "=ownerType" => 'D',
+                "=ownerId" => $dealId,
+            ],
+        ]);
+
+        return collect($existDealProducts['result']['productRows'])->count();
+
     }
 }
