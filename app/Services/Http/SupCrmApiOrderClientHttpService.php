@@ -5,6 +5,7 @@ namespace App\Services\Http;
 use Exception;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
@@ -54,6 +55,55 @@ class SupCrmApiOrderClientHttpService
             ]);
         }
         return $data;
+    }
+
+    /**
+     * @throws RequestException
+     */
+    public function getCustomerById(string $customerId): array
+    {
+        $response = $this->baseRequest()->get('/customer', [
+            'id' => $customerId,
+        ]);
+
+        $response->throw();
+
+        return $response->json();
+    }
+
+    public function findSalesPointByCustomerGroupId(?int $groupId): ?string
+    {
+        if ($groupId === null) {
+            return null;
+        }
+
+        $salesPoints = $this->listSalesPoints();
+
+        $matchedPoint = collect($salesPoints)->first(function (array $point) use ($groupId) {
+            return data_get($point, 'customerGroupId') === $groupId;
+        });
+
+        if (!$matchedPoint) {
+            return null;
+        }
+
+        return data_get($matchedPoint, 'name')
+            ?? data_get($matchedPoint, 'title')
+            ?? data_get($matchedPoint, 'id');
+    }
+
+    /**
+     * @throws RequestException
+     */
+    public function listSalesPoints(): array
+    {
+        return Cache::remember('ferro_sales_points', now()->addMinutes(30), function () {
+            $response = $this->baseRequest()->get('/sales/points');
+
+            $response->throw();
+
+            return $response->json();
+        });
     }
 
     /**

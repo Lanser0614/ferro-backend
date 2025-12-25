@@ -43,6 +43,15 @@ class SyncOrderFromSupToBitrixUseCase
             return;
         }
 
+        $contactExtraFields = $this->prepareContactExtraFields($sapContactId);
+
+        if (!empty($contactExtraFields)) {
+            $this->bitrixManager->sendDataToBitrix('crm.contact.update', [
+                'ID' => $contact->id,
+                'fields' => $contactExtraFields,
+            ]);
+        }
+
         $debts = $this->ferroOrderClientHttpService->getClientDebtByBusinessPartnerId($sapContactId);
         $debtCollection = collect($debts)->map(function ($debt) {
             return [
@@ -164,5 +173,72 @@ class SyncOrderFromSupToBitrixUseCase
             $sap['orderType'] ?? '',
             trim($itemsComment)
         );
+    }
+
+    private function prepareContactExtraFields(string $sapContactId): array
+    {
+        try {
+            $customer = $this->ferroOrderClientHttpService->getCustomerById($sapContactId);
+        } catch (RequestException $exception) {
+            return [];
+        }
+
+        $address = $this->resolveCustomerAddress($customer['addresses'] ?? []);
+
+        $fields = [
+            'UF_CRM_1761817021' => data_get($customer, 'segment') ?? data_get($customer, 'segmentName'),
+            'UF_CRM_1761817826' => $this->resolveLocation($address),
+            'UF_CRM_1766518923' => $this->ferroOrderClientHttpService->findSalesPointByCustomerGroupId(
+                (int) data_get($customer, 'groupId')
+            ),
+            'UF_CRM_1766518953' => data_get($address, 'county'),
+        ];
+
+        return array_filter($fields, static fn($value) => $value !== null && $value !== '');
+    }
+
+    private function resolveCustomerAddress(array $addresses): array
+    {
+        $shipping = collect($addresses)->first(function (array $address) {
+            return strtoupper((string) data_get($address, 'type')) === 'SHIPPING';
+        });
+
+        if (!empty($shipping)) {
+            return $shipping;
+        }
+
+        $billing = collect($addresses)->first(function (array $address) {
+            return strtoupper((string) data_get($address, 'type')) === 'BILLING';
+        });
+
+        if (!empty($billing)) {
+            return $billing;
+        }
+
+        return $addresses[0] ?? [];
+    }
+
+    private function resolveLocation(?array $address): ?string
+    {
+        if (empty($address)) {
+            return null;
+        }
+
+        if (!empty(data_get($address, 'buildingFloorRoom'))) {
+            return data_get($address, 'buildingFloorRoom');
+        }
+
+        $latitude = data_get($address, 'latitude');
+        $longitude = data_get($address, 'longitude');
+
+        if ($latitude !== null && $longitude !== null) {
+            return sprintf('%s,%s', $latitude, $longitude);
+        }
+
+        if (!empty(data_get($address, 'address'))) {
+            return data_get($address, 'address');
+        }
+
+        return null;
     }
 }
