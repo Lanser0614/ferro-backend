@@ -43,7 +43,11 @@ class SyncOrderFromSupToBitrixUseCase
             return;
         }
 
-        $contactExtraFields = $this->prepareContactExtraFields($sapContactId);
+        $debts = $this->ferroOrderClientHttpService->getClientDebtByBusinessPartnerId($sapContactId);
+        $contactExtraFields = array_merge(
+            $this->prepareContactExtraFields($sapContactId),
+            $this->mapDebtFields($debts)
+        );
 
         if (!empty($contactExtraFields)) {
             $this->bitrixManager->sendDataToBitrix('crm.contact.update', [
@@ -52,63 +56,22 @@ class SyncOrderFromSupToBitrixUseCase
             ]);
         }
 
-        $debts = $this->ferroOrderClientHttpService->getClientDebtByBusinessPartnerId($sapContactId);
-        $debtCollection = collect($debts)->map(function ($debt) {
-            return [
-                'balance' => $debt['balance'],
-                'debtBalance' => $debt['debit'] - $debt['credit'],
-                'overdueInDays' => $debt['overdueInDays'],
-                'dueDate' => $debt['dueDate'],
-                'documentId' => $debt['documentId'],
-                'documentTypeCode' => $debt['documentTypeCode'],
-            ];
-        });
-
-
-
-
-        //        balance - UF_CRM_1761816955
-        //        (debit - credit) - UF_CRM_1766517351
-        //        overdueInDays - UF_CRM_1766517429
-        //        dueDate - UF_CRM_1766517483
-        //        documentId - UF_CRM_1766517544
-        //        documentTypeCode - UF_CRM_1766517575
-        if ($debtCollection->isNotEmpty()) {
-            $this->bitrixManager->sendDataToBitrix('crm.contact.update', [
-                'ID' => $contact->id,
-                'fields' => [
-                    'UF_CRM_1766517091' => $debtCollection->pluck('balance')->toArray(),
-                    'UF_CRM_1766517351' => $debtCollection->pluck('debtBalance')->toArray(),
-                    'UF_CRM_1766517429' => $debtCollection->pluck('overdueInDays')->toArray(),
-                    'UF_CRM_1766517483' => $debtCollection->pluck('dueDate')->toArray(),
-                    'UF_CRM_1766517544' => $debtCollection->pluck('documentId')->toArray(),
-                    'UF_CRM_1766517575' => $debtCollection->pluck('documentTypeCode')->toArray(),
-                ]
-            ]);
-        }
-
-
         $supOrders = FerroSupOrder::whereBitrixContactId($contact->id)
-            ->pluck('sup_order_id')->toArray();;
+            ->pluck('sup_order_id')
+            ->toArray();
 
-        $orders = $this->ferroOrderClientHttpService->listOrders($sapContactId);
-
-        $debts = $this->ferroOrderClientHttpService->getClientDebtByBusinessPartnerId($sapContactId);
-
-        if (count($debts) > 0) {
-            $this->bitrixManager->sendDataToBitrix('crm.contact.update', [
-                'ID' => $contact->id,
-                'fields' => [
-
-                ]
-            ]);
-        }
-
-        if ($orders['totalCount'] == 0) {
+        try {
+            $orders = $this->ferroOrderClientHttpService->listOrders($sapContactId);
+        } catch (RequestException $exception) {
             return;
         }
 
-        $collectOrders = collect($orders['result'])->whereNotIn('id', $supOrders);;
+        if (data_get($orders, 'totalCount') == 0) {
+            return;
+        }
+
+        $collectOrders = collect(data_get($orders, 'result', []))
+            ->whereNotIn('id', $supOrders);
 
         foreach ($collectOrders as $order) {
 
@@ -183,18 +146,50 @@ class SyncOrderFromSupToBitrixUseCase
             return [];
         }
 
+        if (data_get($customer, 'deleted') === true) {
+            return [];
+        }
+
         $address = $this->resolveCustomerAddress($customer['addresses'] ?? []);
+
+        $groupId = data_get($customer, 'groupId');
+        $groupId = is_numeric($groupId) ? (int) $groupId : null;
 
         $fields = [
             'UF_CRM_1761817021' => data_get($customer, 'segment') ?? data_get($customer, 'segmentName'),
             'UF_CRM_1761817826' => $this->resolveLocation($address),
-            'UF_CRM_1766518923' => $this->ferroOrderClientHttpService->findSalesPointByCustomerGroupId(
-                (int) data_get($customer, 'groupId')
-            ),
+            'UF_CRM_1766518923' => $this->ferroOrderClientHttpService->findSalesPointByCustomerGroupId($groupId),
             'UF_CRM_1766518953' => data_get($address, 'county'),
         ];
 
         return array_filter($fields, static fn($value) => $value !== null && $value !== '');
+    }
+
+    private function mapDebtFields(array $debts): array
+    {
+        $debtCollection = collect($debts)->map(function ($debt) {
+            return [
+                'balance' => data_get($debt, 'balance'),
+                'debtBalance' => (float) data_get($debt, 'debit', 0) - (float) data_get($debt, 'credit', 0),
+                'overdueInDays' => data_get($debt, 'overdueInDays'),
+                'dueDate' => data_get($debt, 'dueDate'),
+                'documentId' => data_get($debt, 'documentId'),
+                'documentTypeCode' => data_get($debt, 'documentTypeCode'),
+            ];
+        });
+
+        if ($debtCollection->isEmpty()) {
+            return [];
+        }
+
+        return [
+            'UF_CRM_1766517091' => $debtCollection->pluck('balance')->toArray(),
+            'UF_CRM_1766517351' => $debtCollection->pluck('debtBalance')->toArray(),
+            'UF_CRM_1766517429' => $debtCollection->pluck('overdueInDays')->toArray(),
+            'UF_CRM_1766517483' => $debtCollection->pluck('dueDate')->toArray(),
+            'UF_CRM_1766517544' => $debtCollection->pluck('documentId')->toArray(),
+            'UF_CRM_1766517575' => $debtCollection->pluck('documentTypeCode')->toArray(),
+        ];
     }
 
     private function resolveCustomerAddress(array $addresses): array
