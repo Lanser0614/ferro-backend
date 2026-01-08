@@ -4,10 +4,8 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function (\App\Services\Http\SupCrmApiOrderClientHttpService $service) {
-
-//    dd(now()->subDay()->endOfDay()->format('Y-m-d\TH:i:s.v'));
-    dd();
+Route::get('/', function () {
+    return view('welcome');
 });
 
 Route::view('/docs/api', 'docs.redoc')->name('docs.redoc');
