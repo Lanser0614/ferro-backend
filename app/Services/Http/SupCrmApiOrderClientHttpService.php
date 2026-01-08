@@ -71,6 +71,16 @@ class SupCrmApiOrderClientHttpService
         return $response->json();
     }
 
+
+    public function getCustomer(array $query): array
+    {
+        $response = $this->baseRequest()->get('/customer/list', $query);
+
+        $response->throw();
+
+        return $response->json();
+    }
+
     public function findSalesPointByCustomerGroupId(?int $groupId): ?string
     {
         if ($groupId === null) {
@@ -125,6 +135,7 @@ class SupCrmApiOrderClientHttpService
 
     /**
      * @param string $phone
+     * @return array
      * @throws RequestException
      */
     public function getCustomerByPhone(string $phone): array
