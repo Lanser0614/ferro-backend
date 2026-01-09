@@ -103,7 +103,8 @@ class SupCreateOrderUseCase
             [
                 'id' => $dealId,
                 'fields' => [
-                    'UF_CRM_1765651317145' => $sapId,
+                    'UF_CRM_1761815983' => $sapId,
+                    'UF_CRM_1765651317145' => $sapResponse['documentNumber'],
                 ],
             ]
         );
